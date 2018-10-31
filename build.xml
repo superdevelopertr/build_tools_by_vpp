@@ -1,0 +1,11 @@
+<project name="mybuild">
+
+	<echo>build is started</echo>
+	
+	<delete dir="./bin"/>
+	
+	<mkdir dir="./bin"/>
+	
+	<echo>build is finished</echo>
+	
+</project>
