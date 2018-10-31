@@ -1,11 +1,130 @@
-<project name="mybuild">
+<project name="mybuild" default="deploy">
+    <!--Tasks-->
+	
+	<!--Properties-->
+	<property  name="bin_dir" value="./bin"/>
+	<property  name="lib_dir" value="./lib"/>
+	<property  name="src_dir" value="./src"/>
+	<property  name="test_dir" value="./test"/>
+	<property  name="doc_dir" value="./doc"/>
+	<property  name="report_dir" value="./report"/>
+	<property  name="deploy_dir" value="./dist"/>
+	<property  name="war_name" value="mybuild"/>
+	<property  name="public_dir" value="./web"/>
+	<property  name="webinf_dir" value="./WEB-INF"/>
+	
+	<!--reusable properties-->
+    <path id="compile_path">
+    	<fileset dir="${lib_dir}"> <!--read from lib directory all jar files-->
+    	      <include name="*.jar"/>
+    	</fileset>
+    </path>
+	<path id="run_path">
+		 <path refid="compile_path"/>
+		 <pathelement location="${bin_dir}"/>
+    </path>
+	
+	<!--info message for build is started-->
+	<echo>build is started</echo> 
+	
+    <!--removing directory is a good practice otherwise you can use deleted source binary-->
+	<target name="clean">
+    	<delete dir="${bin_dir}"/> 
+    	<delete dir="${report_dir}"/> 
+    	<delete dir="${doc_dir}"/> 
+    	<delete dir="${deploy_dir}"/>
+	</target>
+	
+	<!--recreating directory for work-->
+	<target name="create_directories" depends="clean"> 
+		<mkdir dir="${bin_dir}"/> 
+		<mkdir dir="${report_dir}"/> 
+		<mkdir dir="${doc_dir}"/> 
+	    <mkdir dir="${deploy_dir}"/>
+	</target>
 
-	<echo>build is started</echo>
 	
-	<delete dir="./bin"/>
+	<!-- compiling source files. libraries needed on classpath. in order to add all we need fileset -->
+	<target name="compile" depends="create_directories">
+    	<javac srcdir="${src_dir}" destdir="${bin_dir}">
+    		<classpath refid="compile_path"/>
+    	</javac>
+    	<javac srcdir="${test_dir}" destdir="${bin_dir}">
+    	        <classpath>
+    	            <fileset dir="${lib_dir}"> <!--read from lib directory all jar files-->
+    	                <include name="*.jar"/>
+    	             </fileset>
+    	        </classpath>
+    	</javac>
 	
-	<mkdir dir="./bin"/>
+		<copy file="./src/application.xml" todir="${bin_dir}"/> <!--copy the require xml configuration file to bin-->
+	</target>
 	
-	<echo>build is finished</echo>
+	<!--junit task require classpath in order to run tests and generate report in xml format-->
+	<target name="run_test" depends="compile">
+    	<junit printsummary="on" includeantruntime="false" failureproperty="junit.failure">
+    		<classpath refid="run_path"/>
+    		
+    		<formatter type="xml"/> <!-- this is require in order to export test result -->
+    		
+    		<!--run all tests-->
+    		<batchtest todir="${report_dir}">
+    			   <fileset dir="${test_dir}">
+    			   	 <include name="**/*Test*"/> <!--include all files recursively whose include Test in it's name-->
+    			   </fileset>
+    		</batchtest>
+    	</junit>
+		
+    	<!--create more readable test report in html-->
+    	<junitreport>
+    		   <fileset dir="${report_dir}"/>
+    		   <report todir="${report_dir}"/>
+    	</junitreport>
+    	<!--fail the build if junit.failure occurs-->
+    	<fail if="junit.failure" message="tests are failed because of some tests."/>
+		
+		
+	</target>
+	
+	<!--generating java doc-->
+	<target name="generate_docs" depends="compile">
+    	<javadoc sourcepath="${src_dir}" destdir="${doc_dir}">
+    	</javadoc>
+	</target>
+	
+	<!--to run java class we need to setup classpath-->
+	<target name="run" depends="run_test">
+    	<java classname="com.virtualpairprogrammers.client.SpringClient">
+    		<classpath refid="run_path"/>
+        </java>
+	</target>
+	
+	<!--creating war-->
+	<target name="deploy" depends="run_test">
+    	<war destfile="${deploy_dir}/${war_name}.war" webxml="web.xml">
+    		   <fileset dir="${public_dir}"/><!--public files-->
+    		   
+    		   <classes dir="${bin_dir}"/> <!--binary files-->
+    		
+    		   <classes dir="${webinf_dir}"> <!--scans all properties files under the webinf_dir and copy to classes dir-->
+    		       <include name="**/*.properties"/>
+    		   </classes>
+    		 
+    		   <webinf dir="${webinf_dir}"> <!--web app configurations-->
+    		      <exclude name="**/*.properties"/>
+    		   </webinf>
+    		
+    		   <webinf dir="${src_dir}">
+    		     <include name="**/*.properties"/> 
+    		     <include name="**/*.xml"/>
+    		   </webinf>
+    		
+    		   <lib dir="${lib_dir}">
+    		     <exclude name="servlet-api.jar"/> <!--thats because servlet-api.jar is already included under the tomcat lib directory. so remove it to success deployment-->
+    		   </lib>
+    	</war>
+	</target>
+	
+	<echo>build is finished</echo> <!--info message for build is finished-->
 	
 </project>
