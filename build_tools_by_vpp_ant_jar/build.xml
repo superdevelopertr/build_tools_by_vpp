@@ -1,0 +1,82 @@
+<project name="mybuildproject" default="deploy">
+
+	<property name="bin_dir" value="./bin" />
+	<property name="lib_dir" value="./lib" />
+	<property name="src_dir" value="./src" />
+	<property name="test_dir" value="./test" />
+	<property name="resource_dir" value="./resources" />
+	<property name="report_dir" value="./report" />
+	<property name="doc_dir" value="./doc" />
+
+	<path id="build_path">
+		<fileset dir="${lib_dir}">
+			<include name="**/*.jar" />
+		</fileset>
+	</path>
+
+	<path id="run_path">
+		<fileset dir="${lib_dir}">
+			<include name="**/*.jar" />
+		</fileset>
+		<pathelement location="${bin_dir}"/>
+	</path>
+
+
+	<target name="clean">
+		<delete dir="${bin_dir}" />
+		<delete dir="${report_dir}" />
+		<delete dir="${doc_dir}" />
+	</target>
+	<target name="create-directories" depends="clean">
+		<mkdir dir="${bin_dir}" />
+		<mkdir dir="${report_dir}" />
+		<mkdir dir="${doc_dir}" />
+	</target>
+
+	<target name="compile" depends="create-directories">
+		<javac srcdir="${src_dir}" destdir="${bin_dir}">
+			<classpath refid="build_path" />
+		</javac>
+		<javac srcdir="${test_dir}" destdir="${bin_dir}" debug="true">
+			<classpath refid="build_path" />
+		</javac>
+		
+		<copy file="${resource_dir}/application.properties" todir="${bin_dir}"/>
+	</target>
+	<target name="run_tests" depends="compile">
+		<junit printsummary="on" includeantruntime="false">
+			<classpath refid="run_path" />
+			<formatter type="xml"/>
+			<batchtest todir="${report_dir}">
+			  <fileset dir="${test_dir}">
+			     <include name="**/Test*"/>
+			  </fileset>
+			</batchtest>
+		</junit>
+		<junitreport>
+			   <fileset dir="${report_dir}"/>
+			   <report todir="${report_dir}"/>
+		</junitreport>
+	</target>
+
+	<target name="create_docs" depends="run_tests">
+		<javadoc sourcepath="${src_dir}" destdir="${doc_dir}"/>
+	</target>
+
+	<target name="run" depends="run_tests">
+		<java classname="com.ailhanli.SpringClient"> 
+			<classpath refid="run_path"/>
+		</java>
+	</target>
+	
+	<target name="deploy" depends= "run_tests">
+		<jar destfile="${bin_dir}/myclient.jar" >
+		    <zipgroupfileset dir="${lib_dir}" includes="*.jar" />
+		    <fileset dir="${bin_dir}"/>
+		    <manifest>
+		      <attribute name="Main-Class"
+		          value="com.ailhanli.SpringClient"/>
+		    </manifest>
+		</jar>
+	</target>
+</project>
